@@ -14,7 +14,7 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor() : ViewModel() {
     // 상태 관리 (private으로 숨기고, 읽기 전용만 공개)
     private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState = _uiState.asStateFlow()
+    val uiState = _uiState.asStateFlow()    // _uiState를 일기 전용으로 바꿔서 저장
 
     // 아이디 입력 시 호출
     fun updateId(newId: String) {

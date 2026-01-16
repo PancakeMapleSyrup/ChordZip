@@ -3,12 +3,14 @@ package com.example.guitarchordmanager.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -39,23 +41,26 @@ fun EditSongDialog(
             )
 
             // 제목 수정
-            Text("노래 제목", style = Typography.bodyLarge.copy(fontSize = 14.sp, color = Gray400))
-            Spacer(modifier = Modifier.height(8.dp))
-            TextField(
+            TextFieldWithLabel(
+                label = "노래 제목",
                 value = title,
                 onValueChange = { title = it },
-                placeholder = "제목"
+                placeholder = "제목",
+                imeAction = ImeAction.Next
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // 가수 수정
-            Text("가수 이름", style = Typography.bodyLarge.copy(fontSize = 14.sp, color = Gray400))
-            Spacer(modifier = Modifier.height(8.dp))
-            TextField(
+            TextFieldWithLabel(
+                label = "가수 이름",
                 value = artist,
                 onValueChange = { artist = it },
-                placeholder = "가수"
+                placeholder = "가수",
+                imeAction = ImeAction.Done,
+                keyboardActions = KeyboardActions(
+                    onDone = { onConfirm(title, artist) }
+                )
             )
 
             Spacer(modifier = Modifier.height(24.dp))

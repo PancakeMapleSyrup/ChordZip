@@ -12,6 +12,5 @@ data class Song(
     val bpm: String = "-",
     val capo: String = "None",
     val tuning: String = "Standard",
-
     val parts: List<SongPart> = emptyList()
 )

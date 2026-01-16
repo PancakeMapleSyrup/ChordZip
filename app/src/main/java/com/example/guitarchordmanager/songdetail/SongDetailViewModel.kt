@@ -21,6 +21,7 @@ data class Chord(
 data class SongPart(
     val id: String = UUID.randomUUID().toString(),
     val name: String, // 예: "Intro", "Chorus"
+    val memo: String = "",
     val chords: List<Chord> = emptyList()
 )
 
@@ -65,6 +66,26 @@ class SongDetailViewModel @Inject constructor(
         saveSongUpdate(updatedSong)
     }
 
+    // 파트 정보(이름, 메모) 수정
+    fun updatePartInfo(partId: String, newName: String, newMemo: String) {
+        val currentSong = _uiState.value.song ?: return
+
+        // 해당 파트를 찾아 이름과 메모를 변경
+        val updatedParts = currentSong.parts.map { part ->
+            if (part.id == partId) {
+                part.copy(name = newName, memo = newMemo)
+            } else {
+                part
+            }
+        }
+
+        // 변경된 파트 리스트로 노래 업데이트
+        val updatedSong = currentSong.copy(parts = updatedParts)
+
+        // 저장 및 UI 갱신
+        saveSongUpdate(updatedSong)
+    }
+
     // 파트 순서 변경
     fun reorderParts(fromId: String, toId: String) {
         _uiState.update { state ->
@@ -94,10 +115,7 @@ class SongDetailViewModel @Inject constructor(
         saveSongUpdate(updatedSong)
     }
 
-    // 코드 순서 변경 (특정 파트 내에서)
-    // 순서 변경은 Repository 구현 방식에 따라 다르지만,
-    // 일단 FakeRepository에서는 전체 리스트를 갈아끼우는 함수가 필요합니다.
-    // (간단하게 구현하려면 updateSong을 여러 번 호출하거나, reorder 함수를 Repository에 추가해야 함)
+    // 파트 내 코드 순서 변경
     fun reorderChords(partId: String, fromChordId: String, toChordId: String) {
         val currentSong = _uiState.value.song ?: return
 

@@ -6,6 +6,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 import com.example.guitarchordmanager.data.Song
 import com.example.guitarchordmanager.data.repository.SongRepository
@@ -19,6 +24,13 @@ data class SongListUiState(
     val inputArtist: String = ""                 // 입력 중인 가수
 )
 
+// D-day 상태 관리를 위한 데이터 클래스
+data class DDayState(
+    val targetDate: LocalDate? = null,
+    val goal: String = "",
+    val dDayText: String = "" // "D-10" 등 계산된 텍스트
+)
+
 @HiltViewModel
 class SongListViewModel @Inject constructor(
     private val repository: SongRepository  // Repository 주입 받음
@@ -27,14 +39,17 @@ class SongListViewModel @Inject constructor(
     private val _inputTitle = MutableStateFlow("")
     private val _inputArtist = MutableStateFlow("")
 
+    private val _dDayState = MutableStateFlow(DDayState())
+    val dDayState = _dDayState.asStateFlow()
+
 
     // ViewModel에서 데이터를 가공해서 UiState로 만듦
     val uiState: StateFlow<SongListUiState> = combine(
-        repository.getSongsStream(), // ⭐️ Repository의 데이터를 실시간 구독
-        _inputTitle,
-        _inputArtist
+        repository.getSongsStream(), // (A) DB에서 오는 노래 데이터
+        _inputTitle,                // (B) 입력 중인 제목
+        _inputArtist                // (C) 입력 중인 가수
     ) {
-        songs, title, artist ->
+        songs, title, artist ->     // (A, B, C)가 바뀔 때마다 이 블록이 실행됨
         SongListUiState(
             favoriteSongs = songs.filter { it.isFavorite },
             normalSongs = songs.filter { !it.isFavorite },
@@ -42,10 +57,27 @@ class SongListViewModel @Inject constructor(
             inputArtist = artist
         )
     }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = SongListUiState()
+        scope = viewModelScope, // 뷰모델이 살아있는 동안만 작동
+        started = SharingStarted.WhileSubscribed(5000), // 화면 꺼지면 5초 뒤 구독 취소
+        initialValue = SongListUiState() // 초기값
     )
+
+    // D-day 설정 및 계산 함수
+    fun setDDay(date: LocalDate, goal: String) {
+        val today = LocalDate.now()
+        val diff = ChronoUnit.DAYS.between(today, date)
+
+        val text = when {
+            diff > 0 -> "D-$diff"
+            diff == 0L -> "Today"
+            else -> "D+${-diff}"
+        }
+
+        // 상태 업데이트
+        _dDayState.update {
+            it.copy(targetDate = date, goal = goal, dDayText = text)
+        }
+    }
 
     // --- 입력 값 업데이트 함수 ---
     fun updateInputTitle(text: String) {
@@ -56,12 +88,12 @@ class SongListViewModel @Inject constructor(
         _inputArtist.value = text
     }
 
-    // 노래 추가
+    // 노래 추가 버튼 눌렀을 때
     fun addSong() {
         val title = _inputTitle.value
         val artist = _inputArtist.value
 
-        if (title.isBlank()) return
+        if (title.isBlank()) return // 제목 없으면 무시
 
         val finalArtist = if (artist.isBlank()) "Unknown Artist" else artist
         viewModelScope.launch {

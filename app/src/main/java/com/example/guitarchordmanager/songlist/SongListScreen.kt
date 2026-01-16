@@ -29,27 +29,35 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.ui.focus.FocusDirection
 import androidx.hilt.navigation.compose.hiltViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import com.example.guitarchordmanager.data.Song
-import com.example.guitarchordmanager.ui.components.TextField
+import com.example.guitarchordmanager.ui.components.DDaySetupDialog
 import com.example.guitarchordmanager.ui.components.EditSongDialog
 import com.example.guitarchordmanager.ui.components.DeleteDialog
+import com.example.guitarchordmanager.ui.components.SimpleTextField
+import com.example.guitarchordmanager.ui.components.TestButton
 import com.example.guitarchordmanager.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongListScreen(
     viewModel: SongListViewModel = hiltViewModel(),
     onSongClick: (Song) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val dDayState by viewModel.dDayState.collectAsState()
     var editingSong by remember { mutableStateOf<Song?>(null) }
     var deletingSong by remember { mutableStateOf<Song?>(null) }
 
     // 키보드 포커스 제어
     val focusManager = LocalFocusManager.current
+
+    // D-day 다이얼로그 표시 상태
+    var showDDayDialog by remember { mutableStateOf(false) }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -73,11 +81,47 @@ fun SongListScreen(
         ) {
             // 헤더
             Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "🎼 플레이리스트",
-                style = Typography.headlineLarge,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 헤더 텍스트 조건 (목표 내용이 비어있으면서 목표 날짜도 설정되어 있지 않다면 True)
+                val isDefaultState = dDayState.targetDate == null ||
+                        ((dDayState.dDayText == "Today" || dDayState.dDayText == "D-0") && dDayState.goal.isBlank())
+                val headerText = if (!isDefaultState) { // 무언가 설정되어 있음
+                    if (dDayState.goal.isNotBlank()) { // 목표 내용이 설정되어 있다면
+                        "${dDayState.dDayText} | ${dDayState.goal}"
+                    } else { // 목표 날짜만 설정되어 있다면
+                        dDayState.dDayText
+                    }
+                } else { // 기본 상태
+                    "🎼 플레이리스트"
+                }
+
+                Text(
+                    text = headerText,
+                    style = Typography.headlineLarge,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // D-day 설정 버튼
+                IconButton(
+                    onClick = { showDDayDialog = true },
+                    modifier = Modifier
+                        .background(Gray100, RoundedCornerShape(12.dp))
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Set D-Day",
+                        tint = TossBlue,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
 
             // 노래 추가 입력창
             Row(
@@ -90,20 +134,17 @@ fun SongListScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     // 제목 입력
-                    TextField(
+                    SimpleTextField(
                         value = uiState.inputTitle,
                         onValueChange = { viewModel.updateInputTitle(it) },
                         placeholder = "노래 제목 추가...",
-                        imeAction = ImeAction.Next,
-                        keyboardActions = KeyboardActions(
-                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        )
+                        imeAction = ImeAction.Next
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // 가수 입력
-                    TextField(
+                    SimpleTextField(
                         value = uiState.inputArtist,
                         onValueChange = { viewModel.updateInputArtist(it) },
                         placeholder = "가수 이름 추가...",
@@ -133,7 +174,7 @@ fun SongListScreen(
                 }
             }
 
-            // [핵심 수정] Box를 사용하여 LazyColumn과 안내 문구를 겹쳐서 배치
+            // Box를 사용하여 LazyColumn과 안내 문구를 겹쳐서 배치
             Box(modifier = Modifier.fillMaxSize()) {
 
                 // LazyColumn은 데이터가 있든 없든 항상 그려둡니다
@@ -253,8 +294,20 @@ fun SongListScreen(
                 )
             }
         }
+        // D-day 설정 다이얼로그
+        if (showDDayDialog) {
+            DDaySetupDialog(
+                initialGoal = dDayState.goal,
+                onDismiss = { showDDayDialog = false },
+                onConfirm = { date, goal ->
+                    viewModel.setDDay(date, goal)
+                    showDDayDialog = false
+                }
+            )
+        }
     }
 }
+
 
 @Composable
 fun SongItem(

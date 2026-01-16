@@ -23,8 +23,8 @@ import androidx.hilt.navigation.compose.hiltViewModel // Hilt 사용 시
 import com.example.guitarchordmanager.ui.theme.TossBlue
 import com.example.guitarchordmanager.ui.theme.White
 import com.example.guitarchordmanager.ui.theme.Typography
-import com.example.guitarchordmanager.ui.components.TextField
-import com.example.guitarchordmanager.ui.components.PrimaryButton
+import com.example.guitarchordmanager.ui.components.LoginTextField
+import com.example.guitarchordmanager.ui.components.AnimationButton
 
 @Composable
 fun LoginScreen(
@@ -62,8 +62,8 @@ fun LoginScreen(
                 modifier = Modifier.padding(bottom = 40.dp)
             )
 
-            // ViewModel에게 데이터 전달
-            TextField(
+            // 아이디 입력 창
+            LoginTextField(
                 value = uiState.id, // ViewModel의 값 사용
                 onValueChange = { viewModel.updateId(it) }, // ViewModel 함수 호출
                 placeholder = "아이디를 입력해주세요",
@@ -75,8 +75,8 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Glass/Flat Input Field (비밀번호)
-            TextField(
+            // 비밀번호 입력 창
+            LoginTextField(
                 value = uiState.pw,
                 onValueChange = { viewModel.updatePw(it) }, // ViewModel 함수 호출
                 placeholder = "비밀번호를 입력해주세요",
@@ -93,7 +93,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(30.dp))
 
             // 버튼 활성화 여부도 ViewModel이 결정해준 대로 따름
-            PrimaryButton(
+            AnimationButton(
                 text = if (uiState.isLoading) "잠시만요..." else "로그인",
                 enabled = uiState.isButtonEnabled && !uiState.isLoading,
                 onClick = { viewModel.login(onLoginSuccess) } // ViewModel 함수 호출

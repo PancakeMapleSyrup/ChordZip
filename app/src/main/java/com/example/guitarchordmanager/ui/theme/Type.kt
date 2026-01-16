@@ -1,5 +1,6 @@
 package com.example.guitarchordmanager.ui.theme
 
+import androidx.compose.material3.Text
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -29,5 +30,11 @@ val Typography = Typography(
         fontWeight = FontWeight.Medium,
         fontSize = 17.sp,
         color = Gray900
+    ),
+    // 라벨 텍스트
+    bodySmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp
     )
 )

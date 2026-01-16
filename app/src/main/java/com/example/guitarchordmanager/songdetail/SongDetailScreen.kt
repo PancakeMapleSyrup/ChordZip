@@ -27,9 +27,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.guitarchordmanager.ui.components.EditSongInfoDialog
-import com.example.guitarchordmanager.ui.components.TextField
+import com.example.guitarchordmanager.ui.components.EditPartDialog
+import com.example.guitarchordmanager.ui.components.AddPartDialog
+import com.example.guitarchordmanager.ui.components.AddChordDialog
 import com.example.guitarchordmanager.ui.theme.*
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
@@ -56,6 +59,7 @@ fun SongDetailScreen(
     var showAddPartDialog by remember { mutableStateOf(false) }
     var showAddChordDialogForPartId by remember { mutableStateOf<String?>(null) } // 파트 ID 저장
     var showEditInfoDialog by remember { mutableStateOf(false) }
+    var editingPart by remember { mutableStateOf<SongPart?>(null) }
 
     Box(
         modifier = Modifier
@@ -145,6 +149,7 @@ fun SongDetailScreen(
                             onDeletePartClick = { viewModel.deletePart(part.id) },
                             onReorderChord = { from, to -> viewModel.reorderChords(part.id, from, to) },
                             onDeleteChord = { chordId -> viewModel.deleteChord(part.id, chordId) },
+                            onEditPartClick = { editingPart = part }, // 파트 수정 다이얼로그 호출
                             dragModifier = Modifier.draggableHandle() // 파트 드래그 핸들
                         )
                     }
@@ -188,7 +193,7 @@ fun SongDetailScreen(
 
         // 파트 추가 다이얼로그
         if (showAddPartDialog) {
-            SimpleTextInputDialog(
+            AddPartDialog(
                 title = "새로운 파트 추가",
                 placeholder = "예: Chorus, Verse 1",
                 onDismiss = { showAddPartDialog = false },
@@ -199,9 +204,22 @@ fun SongDetailScreen(
             )
         }
 
+        // 파트 수정 다이얼로그 (이름 & 메모)
+        if (editingPart != null) {
+            EditPartDialog(
+                initialName = editingPart!!.name,
+                initialMemo = editingPart!!.memo,
+                onDismiss = { editingPart = null },
+                onConfirm = { newName, newMemo ->
+                    viewModel.updatePartInfo(editingPart!!.id, newName, newMemo)
+                    editingPart = null
+                }
+            )
+        }
+
         // 코드 추가 다이얼로그 (간단한 입력창 버전)
         if (showAddChordDialogForPartId != null) {
-            SimpleTextInputDialog(
+            AddChordDialog(
                 title = "코드 추가",
                 placeholder = "예: Am7, G/B",
                 onDismiss = { showAddChordDialogForPartId = null },
@@ -225,6 +243,7 @@ fun PartItem(
     onDeletePartClick: () -> Unit,
     onReorderChord: (String, String) -> Unit,
     onDeleteChord: (String) -> Unit,
+    onEditPartClick: () -> Unit,
     dragModifier: Modifier
 ) {
     Card(
@@ -250,12 +269,32 @@ fun PartItem(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // 파트 이름
-                Text(
-                    text = part.name,
-                    style = Typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TossBlue),
-                    modifier = Modifier.weight(1f)
-                )
+                // 파트 이름 및 메모 영역
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = onEditPartClick) // 클릭 시 수정 창 호출
+                ) {
+                    // 파트 이름
+                    Text(
+                        text = part.name,
+                        style = Typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TossBlue)
+                    )
+
+                    // 메모가 있으면 표시
+                    if (part.memo.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = part.memo,
+                            style = Typography.bodyMedium.copy(
+                                fontSize = 13.sp,
+                                color = Gray400
+                            )
+                        )
+                    }
+                }
 
                 // 코드 추가 버튼 (작은 +)
                 IconButton(
@@ -416,46 +455,6 @@ fun ChordChip(
     }
 }
 
-// ------------------------------------
-// 다이얼로그 컴포넌트 (재사용)
-// ------------------------------------
-@Composable
-fun SimpleTextInputDialog(
-    title: String,
-    placeholder: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var text by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title, style = Typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
-        text = {
-            TextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = placeholder
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = { if (text.isNotBlank()) onConfirm(text) },
-                colors = ButtonDefaults.buttonColors(containerColor = TossBlue),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("추가")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소", color = Gray400)
-            }
-        },
-        containerColor = Color.White,
-        shape = RoundedCornerShape(20.dp)
-    )
-}
 
 // ---------------------------
 // 작은 정보 배지 컴포넌트

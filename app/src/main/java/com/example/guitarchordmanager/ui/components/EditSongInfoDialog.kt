@@ -3,7 +3,6 @@ package com.example.guitarchordmanager.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
@@ -51,9 +50,9 @@ fun EditSongInfoDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 제목 & 가수
-                SimpleTextField(value = title, onValueChange = { title = it }, label = "노래 제목")
+                TextFieldWithLabel(value = title, onValueChange = { title = it }, label = "노래 제목")
                 Spacer(modifier = Modifier.height(12.dp))
-                SimpleTextField(value = artist, onValueChange = { artist = it }, label = "가수")
+                TextFieldWithLabel(value = artist, onValueChange = { artist = it }, label = "가수")
 
                 Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(Modifier, DividerDefaults.Thickness, color = Gray100)
@@ -62,7 +61,7 @@ fun EditSongInfoDialog(
                 // 부가 정보 (가로 배치 or 세로 배치)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(Modifier.weight(1f)) {
-                        SimpleTextField(
+                        TextFieldWithLabel(
                             value = bpm,
                             onValueChange = { input ->
                                 if (input.all {it.isDigit() }) bpm = input
@@ -73,7 +72,7 @@ fun EditSongInfoDialog(
                         )
                     }
                     Box(Modifier.weight(1f)) {
-                        SimpleTextField(
+                        TextFieldWithLabel(
                             value = capo,
                             onValueChange = { input ->
                                 if (input.all { it.isDigit() }) capo = input
@@ -85,7 +84,7 @@ fun EditSongInfoDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                SimpleTextField(value = tuning, onValueChange = { tuning = it }, label = "Tuning")
+                TextFieldWithLabel(value = tuning, onValueChange = { tuning = it }, label = "Tuning")
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -102,40 +101,5 @@ fun EditSongInfoDialog(
                 }
             }
         }
-    }
-}
-
-// 라벨이 있는 텍스트 필드 헬퍼
-@Composable
-fun SimpleTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String = "",
-    keyboardType: KeyboardType = KeyboardType.Text,
-    containerColor: Color = Gray100
-) {
-    Column {
-        Text(label, style = Typography.bodySmall, color = Gray400)
-        Spacer(modifier = Modifier.height(4.dp))
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = containerColor,
-                unfocusedContainerColor = containerColor,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            shape = RoundedCornerShape(8.dp),
-            singleLine = true,
-            placeholder = {
-                if (placeholder.isNotEmpty()) {
-                    Text(text = placeholder, color = Gray400.copy(alpha = 0.5f))
-                }
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
-        )
     }
 }

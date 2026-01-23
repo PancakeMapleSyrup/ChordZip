@@ -12,7 +12,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            GuitarChordManagerTheme {
+            ChordZipTheme {
                 // 네비게이션 시작!
                 AppNavigation()
             }

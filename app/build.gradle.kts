@@ -2,17 +2,18 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.devtools.ksp)
     // Hilt 플러그인
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
 }
 
 android {
-    namespace = "com.example.guitarchordmanager"
+    namespace = "com.example.chordzip"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.guitarchordmanager"
+        applicationId = "com.example.chordzip"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
@@ -72,5 +73,14 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     // Reorderable 라이브러리 추가
     implementation("sh.calvin.reorderable:reorderable:2.4.3")
-
+    // [Room 데이터베이스] : 데이터를 폰에 영구 저장하는 도구
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    // [KSP] : 코틀린용 어노테이션 프로세서 (Room 코드를 자동 생성해줌)
+    // plugins 블록에 id("com.google.devtools.ksp")가 추가되어 있어야 합니다.
+    ksp("androidx.room:room-compiler:$room_version")
+    // [Room KTX] : 코루틴과 Flow를 편하게 쓰기 위함
+    implementation("androidx.room:room-ktx:$room_version")
+    // [Gson] : 리스트(List) 데이터를 문자열(JSON)로 바꿔주는 도구
+    implementation("com.google.code.gson:gson:2.10.1")
 }

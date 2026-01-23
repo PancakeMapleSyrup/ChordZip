@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Guitar Chord Manager"
+rootProject.name = "ChordZip"
 include(":app")
  

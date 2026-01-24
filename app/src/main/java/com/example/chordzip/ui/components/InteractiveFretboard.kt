@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -92,12 +91,12 @@ fun InteractiveFretboard(
                     if (showLabel && tapOffset.x < fretLabelWidth) {
                         // 위쪽 화살표 영역 (중심 Y보다 위쪽)
                         if (tapOffset.y < labelCenterY) {
-                            if (currentStartFret < 20) { // 20보다 작을 때만 동작
-                                currentOnStartFretChanged(currentStartFret + 1)
-                            }
-                        } else { // 아래쪽 화살표 영역 (중심 Y보다 아래쪽)
                             if (currentStartFret > 1) { // 1보다 클 때만 동작
                                 currentOnStartFretChanged(currentStartFret - 1)
+                            }
+                        } else { // 아래쪽 화살표 영역 (중심 Y보다 아래쪽)
+                            if (currentStartFret < 20) { // 20보다 작을 때만 동작
+                                currentOnStartFretChanged(currentStartFret + 1)
                             }
                         }
                         return@detectTapGestures    // 화살표를 눌렀다면 지판 로직은 실행 X
@@ -119,14 +118,11 @@ fun InteractiveFretboard(
 
                     // 너트 위쪽(상단)을 눌렀는지 확인
                     if (tapOffset.y < topMargin) {
-                        // 현재 X(-1)이면 -> O(0)
-                        // 현재 O(0)이면 -> X(-1)
-                        // 현재 프렛(1~)이 눌려있으면 -> X(-1)로 초기화
-                        // 여기서는 X <-> O 토글로 구현
-                        if (currentState == -1) {
-                            newPositions[clickedStringIndex] = 0 // Open
-                        } else {
+                        // 현재 프렛(1~) 이 눌려있으면 -> O(0)으로 초기화
+                        if (currentState == 0) {    // 너트를 눌렀을 때 Open(0)이면 -> Mute(-1)로 변경
                             newPositions[clickedStringIndex] = -1 // Mute
+                        } else {    // 너트를 눌렀을 때 Mute(-1)이거나 현재 프렛(1~)이 눌려있으면 -> Open(0)으로 변경
+                            newPositions[clickedStringIndex] = 0 // Open
                         }
                     } else {
                         // [하단 터치] 프렛 계산 (1~5)
@@ -135,8 +131,8 @@ fun InteractiveFretboard(
                         // 범위를 벗어난 터치 무시 (혹시 모를 버그 방지)
                         if (clickedFret in 1..fretCount) {
                             if (currentState == clickedFret) {
-                                // 이미 눌린 곳 다시 클릭 -> Open(0)으로 변경
-                                newPositions[clickedStringIndex] = 0
+                                // 이미 눌린 곳 다시 클릭 -> Mute(-1)로 변경
+                                newPositions[clickedStringIndex] = -1
                             } else {
                                 // 새로운 곳 클릭 -> 해당 프렛으로 변경
                                 newPositions[clickedStringIndex] = clickedFret
@@ -212,8 +208,8 @@ fun InteractiveFretboard(
             // 화살표는 Interactive = true 일 때만 그림
             if (isInteractive) {
                 // 화살표 색상 계산
-                val upArrowColor = if (startFret < 20) BOARD_COLOR else DISABLED_COLOR
-                val downArrowColor = if (startFret > 1) BOARD_COLOR else DISABLED_COLOR
+                val upArrowColor = if (startFret > 1) BOARD_COLOR else DISABLED_COLOR
+                val downArrowColor = if (startFret < 20) BOARD_COLOR else DISABLED_COLOR
                 val arrowSize = 8.dp.toPx()
                 // 위 화살표 (▲) 그리기
                 val upArrowY = labelCenterY - (textLayoutResult.size.height / 2) - 12.dp.toPx()
@@ -269,8 +265,7 @@ fun InteractiveFretboard(
                     drawCircle(
                         color = itemColor,
                         radius = currentMarkerRadius,
-                        center = Offset(x, markerY),
-                        style = Stroke(width = markerThicknessPx)
+                        center = Offset(x, markerY)
                     )
                 }
                 else -> { // 1~5 (프렛 누름) -> 점 그리기

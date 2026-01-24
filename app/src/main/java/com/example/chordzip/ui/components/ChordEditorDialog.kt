@@ -18,8 +18,17 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalView
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import com.example.chordzip.ui.theme.*
 import com.example.chordzip.data.ChordLibrary
 
@@ -38,17 +47,17 @@ fun ChordEditorDialog(
     var chordNameInput by remember { mutableStateOf(initialName) }
     // 운지표 (기본값은 빈 상태)
     var fretPositions by remember { mutableStateOf(initialPositions) }
-    var startFret by remember { mutableStateOf(initialStartFret) }
-
-    // 코드 이름 한 글자 지우기 로직
-    val onDeleteChar = {
-        if (chordNameInput.isNotEmpty()) {
-            chordNameInput = chordNameInput.dropLast(1)
-        }
-    }
+    var startFret by remember { mutableIntStateOf(initialStartFret) }
+    // 코드 이름 전체 지우기 로직
+    val onClearInput = { chordNameInput = "" }
+    // 코드 자동 완성 모드 상태 (기본값: 꺼짐)
+    var isAutoMode by remember { mutableStateOf(false) }
 
     // 텍스트가 바뀔 때마다, 알고 있는 코드라면 운지표를 자동으로 업데이트 (편의 기능)
     LaunchedEffect(chordNameInput) {
+        // 자동 모드가 꺼져 있으면 실행 안 함
+        if (!isAutoMode) return@LaunchedEffect
+
         // 입력된 이름이 초기값과 다를 때만 표준 운지법을 불러옴
         // (수정 모드에서 열자마자 내가 커스텀한 운지가 초기화되는 것 방지)
         if (chordNameInput != initialName) {
@@ -135,7 +144,7 @@ fun ChordEditorDialog(
                             item {
                                 InputChip(
                                     label = "⌫",
-                                    onClick = onDeleteChar,
+                                    onClick = onClearInput,
                                     backgroundColor = Gray100, // 약간 더 어두운 색으로 강조
                                     contentColor = Color(0xFFFF3553)
                                 )
@@ -219,6 +228,27 @@ fun ChordEditorDialog(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center // 카드 수직 중앙 정렬
                     ) {
+                        // 토글 스위치 영역 (우측 정렬)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp, end = 40.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End // 오른쪽 끝으로 보냄
+                        ) {
+                            Text(
+                                text = "자동 완성",
+                                style = Typography.labelMedium,
+                                color = if(isAutoMode) TossBlue else Gray400, // 켜지면 파란색 글씨
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            AutoModeToggle(
+                                checked = isAutoMode,
+                                onCheckedChange = { isAutoMode = it }
+                            )
+                        }
+
                         Card(
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -346,5 +376,57 @@ fun InputChip(
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
         }
+    }
+}
+
+// 자동 모드 토글 스위치
+@Composable
+fun AutoModeToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // 1. 크기 정의 (조금 더 큼직하게)
+    val width = 52.dp
+    val height = 32.dp
+    val thumbSize = 27.dp
+    val padding = 2.5.dp // 테두리와의 간격
+
+    // 2. 애니메이션 (빠르고 쫀득하게: FastOutSlowInEasing 사용)
+    val thumbPosition by animateDpAsState(
+        targetValue = if (checked) width - thumbSize - padding else padding,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "ThumbPosition"
+    )
+
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) TossBlue else Color(0xFFE1E4E8), // 꺼졌을 때 너무 어둡지 않은 회색
+        animationSpec = tween(durationMillis = 250),
+        label = "TrackColor"
+    )
+
+    // 3. 토글 트랙 (배경)
+    Box(
+        modifier = modifier
+            .size(width, height)
+            .clip(CircleShape)
+            .background(trackColor)
+            .clickable(
+                // 물결 효과(Ripple) 제거하여 깔끔하게
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onCheckedChange(!checked) },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        // 4. 토글 썸 (움직이는 하얀 원)
+        Box(
+            modifier = Modifier
+                .offset(x = thumbPosition) // x 좌표 이동 애니메이션
+                .size(thumbSize)
+                .clip(CircleShape)
+                .background(Color.White)
+                // 하얀 원에만 살짝 그림자를 주어 입체감 부여
+                .shadow(elevation = 2.dp, shape = CircleShape)
+        )
     }
 }

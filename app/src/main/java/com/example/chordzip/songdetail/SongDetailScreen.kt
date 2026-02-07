@@ -250,12 +250,12 @@ fun SongDetailScreen(
             }
         }
 
-        Column(
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp), // 전체 여백
-            horizontalAlignment = Alignment.End, // 오른쪽 정렬
-            verticalArrangement = Arrangement.spacedBy(16.dp) // 버튼 사이 간격
+            verticalAlignment = Alignment.CenterVertically, // 세로 중앙 정렬
+            horizontalArrangement = Arrangement.spacedBy(16.dp) // 버튼 사이 간격
         ) {
             // 유튜브 버튼
             val context = LocalContext.current
@@ -285,7 +285,7 @@ fun SongDetailScreen(
                                     val intent =
                                         Intent(Intent.ACTION_VIEW, song.youtubeLink.toUri())
                                     context.startActivity(intent)
-                                } catch (e: Exception) {
+                                } catch (_: Exception) {
                                     Toast.makeText(context, "링크를 열 수 없습니다.", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
@@ -425,7 +425,7 @@ fun SongDetailScreen(
     // 코드 추가 다이얼로그
     if (showAddChordDialogForPartId != null) {
         ChordEditorDialog(
-            title = "코드 추가",
+            title = "코드 생성",
             confirmButtonText = "코드 추가",
             onDismiss = { showAddChordDialogForPartId = null },
             onConfirm = { name, positions, startFret ->
@@ -701,12 +701,12 @@ fun ChordChip(
                     isInteractive = false, // 보기 전용 모드
 
                     // 디자인 최적화
-                    boardPadding = 7.dp,    // 16dp -> 7dp로 축소
-                    dotRadius = 8.dp,        // 10dp -> 8dp로 축소
-                    lineThickness = 1.5.dp,  // 2dp -> 1.5dp로 축소
-                    markerThickness = 2.dp,  // 3dp -> 2dp로 축소
-                    nutThickness = 4.dp,     // 6dp -> 4dp로 축소
-                    fretLabelFontSize = 18.sp // 24sp -> 18sp로 축소
+                    boardPadding = 7.dp,
+                    dotRadius = 8.dp,
+                    lineThickness = 1.5.dp,
+                    markerThickness = 2.dp,
+                    nutThickness = 4.dp,
+                    fretLabelFontSize = 18.sp
                 )
             }
         }

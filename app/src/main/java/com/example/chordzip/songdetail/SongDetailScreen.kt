@@ -571,7 +571,7 @@ fun PartItem(
                 val screenWidth = maxWidth
                 val spacing = 8.dp
                 val minCellWidth = 140.dp   // 코드 박스 최소 너비 (운지표 공간 확보)
-                val cellHeight = 240.dp     // 코드 박스 높이 (운지표 공간 확보)
+                val cellHeight = 270.dp     // 코드 박스 높이 (운지표 공간 확보)
 
                 // 한 줄에 들어갈 수 있는 개수 계산
                 // (화면너비 + 간격) / (최소너비 + 간격)
@@ -662,7 +662,7 @@ fun ChordChip(
         shadowElevation = elevation,
         modifier = modifier
             .scale(scale)
-            .height(240.dp) // 이 높이 안에 운지표가 그려짐
+            .height(270.dp) // 이 높이 안에 운지표가 그려짐
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -704,7 +704,8 @@ fun ChordChip(
                     boardPadding = 7.dp,
                     dotRadius = 8.dp,
                     lineThickness = 1.5.dp,
-                    markerThickness = 2.dp,
+                    markerThickness = 2.5.dp,
+                    markerPaddingTop = 12.dp,
                     nutThickness = 4.dp,
                     fretLabelFontSize = 18.sp
                 )

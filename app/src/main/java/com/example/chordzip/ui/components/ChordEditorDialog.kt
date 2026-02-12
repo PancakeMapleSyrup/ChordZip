@@ -44,12 +44,17 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import com.example.chordzip.ui.theme.*
 import com.example.chordzip.data.ChordLibrary
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.pointerInput
 
 // TODO: ChordEditorDialog에서 코드 추가를 눌렀을 때 창이 자동으로 닫히는 로직이 어딨는지 찾아야됨.
 // TODO: EDITOR에서 사용자가 원래 저장된 코드와 이름이 겹치는 코드를 저장했을 때 사용자 지정 코드가 원래 코드를 덮어서 나와야 하는데 그러지 못하고 있음. 해결해야 함.
@@ -194,6 +199,9 @@ fun ChordEditorMainContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
+            .swipeDetector(
+                onSwipeLeft = { onNavigateToLibrary() }
+            )
     ) {
         Row(
             modifier = Modifier
@@ -469,6 +477,7 @@ fun ChordEditorMainContent(
                 Text("취소", color = Gray400)
             }
             Spacer(modifier = Modifier.width(8.dp))
+
             Button(
                 onClick = { onConfirm(chordNameInput, fretPositions, startFret) },
                 colors = ButtonDefaults.buttonColors(containerColor = TossBlue),
@@ -556,11 +565,18 @@ fun ChordLibraryContent(
     onBack: () -> Unit,
     onChordSelected: (com.example.chordzip.data.ChordVoicing, Boolean) -> Unit   // 선택 콜백 추가
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     // 바로 추가 모드 상태
     var isQuickAddMode by remember { mutableStateOf(false) }
 
+    // 삭제 모드 상태
+    var isDeleteMode by remember { mutableStateOf(false) }
+
+    // 리스트 갱신용 트리거 (삭제 후 UI 업데이트를 위해 필요)
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+
     // 모든 코드를 가져와서 근음 별로 그룹화합니다.
-    val groupedChords = remember {
+    val groupedChords = remember(refreshTrigger) {
         // C, C#, D... 순서대로 정렬하기 위한 기준 리스트
         val rootOrder = listOf("C", "C#", "D", "Eb", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "A#", "B")
 
@@ -599,6 +615,9 @@ fun ChordLibraryContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
+            .swipeDetector(
+                onSwipeRight = { onBack() }
+            )
     ) {
         // 헤더 영역 (제목 + 빠른 이동 탭)
         Row(
@@ -626,30 +645,96 @@ fun ChordLibraryContent(
                 )
             }
 
-            // 오른쪽: [바로 추가 토글] + [알파벳 탭]
+            // 오른쪽: [삭제] + [바로 추가 토글] + [알파벳 탭]
             // 화면이 좁을 수 있으므로 Row 안에 배치하되, 탭은 스크롤 가능하게(LazyRow) 처리
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
                 modifier = Modifier.weight(1f)  // 남은 공간 차지
             ) {
-                // 코드 바로 추가 토글
+                // 삭제 텍스트/아이콘 색상 애니메이션
+                val deleteContentColor by animateColorAsState(
+                    targetValue = if (isDeleteMode) Color(0xFFFF3553) else Gray400,
+                    label = "delContentColor",
+                    animationSpec = tween(300)
+                )
+                // 배경 색상 애니메이션 (누르는 범위 표시)
+                val deleteBackgroundColor by animateColorAsState(
+                    targetValue = if (isDeleteMode) Color(0xFFFF3553).copy(alpha = 0.1f) else Gray100,
+                    label = "delBgColor",
+                    animationSpec = tween(300)
+                )
+                // 삭제 모드 버튼
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(end = 16.dp) // 탭과의 간격
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(deleteBackgroundColor)
+                        .clickable {
+                            isDeleteMode = !isDeleteMode
+                            if (isDeleteMode) isQuickAddMode = false // 삭제모드가 켜지면 바로추가는 꺼짐
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Mode",
+                        tint = deleteContentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "삭제",
+                        style = Typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = deleteContentColor,
+                        fontSize = 13.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // 코드 바로 추가 토글
+                // 텍스트/아이콘 색상 애니메이션
+                val quickAddContentColor by animateColorAsState(
+                    targetValue = if (isQuickAddMode) TossBlue else Gray400,
+                    label = "quickAddContentColor",
+                    animationSpec = tween(300)
+                )
+
+                // 배경 색상 애니메이션
+                val quickAddBackgroundColor by animateColorAsState(
+                    targetValue = if (isQuickAddMode) TossBlue.copy(alpha = 0.1f) else Gray100,
+                    label = "quickAddBgColor",
+                    animationSpec = tween(300)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(quickAddBackgroundColor) // 배경색 적용
+                        .clickable {
+                            isQuickAddMode = !isQuickAddMode
+                            if (isQuickAddMode) isDeleteMode = false // 바로추가가 켜지면 삭제모드는 꺼짐
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp) // 삭제 버튼과 동일한 패딩
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn, // 또는 Icons.Default.Check
+                        contentDescription = "Quick Add Mode",
+                        tint = quickAddContentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "바로 추가",
                         style = Typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (isQuickAddMode) TossBlue else Gray400,
+                        color = quickAddContentColor,
                         fontSize = 13.sp
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    AutoModeToggle(
-                        checked = isQuickAddMode,
-                        onCheckedChange = { isQuickAddMode = it }
-                    )
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
             }
 
             // 오른쪽: 빠른 이동 탭 (C D E F G A B)
@@ -665,7 +750,7 @@ fun ChordLibraryContent(
                             .clip(CircleShape)
                             .background(Color.Transparent) // 배경색 없음
                             .border(2.dp, Gray100, CircleShape) // 테두리 살짝
-                            .clickable{
+                            .clickable {
                                 val targetIndex = scrollIndices[tab]
                                 if (targetIndex != null) {
                                     coroutineScope.launch {
@@ -723,7 +808,7 @@ fun ChordLibraryContent(
                         Text(
                             text = "$root 코드",
                             style = Typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = TossBlue
+                            color = Gray900
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider(thickness = 1.dp, color = Gray100) // 구분선
@@ -732,12 +817,24 @@ fun ChordLibraryContent(
 
                 items(
                     items = chords,
-                    key = { chord -> chord.name} // 각 코드의 이름을 키로 설정
+                    key = { it.name } // 각 코드의 이름을 키로 설정
                 ) { chord ->
                     ChordOptionCard(
                         chord = chord,
                         isQuickAdd = isQuickAddMode,
-                        onClick = { onChordSelected(chord, isQuickAddMode) }
+                        isDelete = isDeleteMode,
+                        onClick = {
+                            if (isDeleteMode) {
+                                // 삭제 모드일 때
+                                val success = ChordLibrary.removeChord(chord.name)
+                                if (success) {
+                                    android.widget.Toast.makeText(context, "${chord.name} 코드가 삭제되었습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                                    refreshTrigger++    // UI 갱신
+                                }
+                            } else {
+                                onChordSelected(chord, isQuickAddMode)
+                            }
+                        }
                     )
                 }
             }
@@ -745,7 +842,9 @@ fun ChordLibraryContent(
             // 데이터가 없을 경우 처리
             if(groupedChords.isEmpty()) {
                 item(span = { GridItemSpan(6) }) {
-                    Box(modifier = Modifier.height(200.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier
+                        .height(200.dp)
+                        .fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text("표시할 코드가 없습니다.", color = Gray400)
                     }
                 }
@@ -797,58 +896,92 @@ fun InputChip(
 fun ChordOptionCard(
     chord: com.example.chordzip.data.ChordVoicing,
     isQuickAdd: Boolean, // 바로 추가 모드 여부
+    isDelete: Boolean,  // 삭제 모드 여부
     onClick: () -> Unit
 ) {
-    // 1. 클릭 애니메이션 상태 설정 (ChordChip과 동일)
+    // 저장 완료(클릭 피드백) 상태 관리
+    var isAdded by remember { mutableStateOf(false) }
+    // 상태 복귀 타이머 (1.5초 후 원래 색으로 복귀)
+    LaunchedEffect(isAdded) {
+        if (isAdded) {
+            kotlinx.coroutines.delay(1500) // 1.5초 유지
+            isAdded = false
+        }
+    }
+
+    // 클릭 애니메이션 상태 설정 (ChordChip과 동일)
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        label = "chord_scale"
-    )
+    val view = LocalView.current
 
     val headerBackgroundColor by animateColorAsState(
-        targetValue = if (isQuickAdd) Color(0xFFcee7ff) else Gray100,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = when {
+            isAdded -> TossBlue
+            isDelete -> Color(0xFFFF3553).copy(alpha = 0.1f)
+            isQuickAdd -> TossBlue.copy(alpha = 0.1f)
+            else -> Gray100
+        },
+        animationSpec = tween(300),
         label = "headerBg"
     )
 
-//    val headerContentColor by animateColorAsState(
-//        targetValue = if (isQuickAdd) Color.White else Gray900,
-//        animationSpec = tween(durationMillis = 300),
-//        label = "headerContent"
-//    )
+    val headerContentColor by animateColorAsState(
+        targetValue = when{
+            isAdded -> Color.White
+            isDelete -> Color(0xFFFF3553)
+            isQuickAdd -> TossBlue
+            else -> Gray900
+        },
+        animationSpec = tween(300),
+        label = "headerContent"
+    )
 
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = Color.White,
         shadowElevation = 2.dp, // 라이브러리 목록이므로 그림자는 살짝 낮게 설정
         modifier = Modifier
-            .scale(scale)
             .fillMaxWidth()
             .height(200.dp) // 그리드에 맞게 높이 조정 (160dp는 너무 짧아서 200dp로 바꿈)
             .clickable(
                 interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) // 햅틱 피드백 추가
+                    onClick()
+                    // 바로 추가 모드일 때만 애니메이션 트리거
+                    if (isQuickAdd) {
+                        isAdded = true
+                    }
+                }
             )
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // [상단] 코드 이름 (회색 배경 타이틀) - ChordChip 스타일
-            Box(
+            // [상단] 코드 이름 헤더
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(32.dp) // 헤더 높이 살짝 조정
+                    .height(32.dp)
                     .background(headerBackgroundColor),
-                contentAlignment = Alignment.Center
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
+                if (isAdded) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Added",
+                        tint = headerContentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
                 Text(
                     text = chord.name,
                     style = Typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = Gray900,
+                        color = headerContentColor,
                         fontSize = 16.sp
                     ),
                     maxLines = 1
@@ -867,14 +1000,12 @@ fun ChordOptionCard(
                     positions = chord.positions,
                     startFret = chord.startFret,
                     isInteractive = false, // 읽기 전용
-
-                    // [디자인 최적화] 3열 그리드 작은 화면에 맞춘 수치
-                    // ChordChip보다 약간 작게 설정해야 좁은 칸에서 예쁘게 보입니다.
                     boardPadding = 4.dp,
                     dotRadius = 6.dp,        // 점 크기
                     lineThickness = 1.dp,    // 선 두께
-                    nutThickness = 3.dp,     // 너트 두께
-                    markerThickness = 1.5.dp,// X, O 마커 두께
+                    nutThickness = 2.5.dp,     // 너트 두께
+                    markerThickness = 2.dp,// X, O 마커 두께
+                    markerPaddingTop = 10.dp,
                     fretLabelFontSize = 12.sp
                 )
             }
@@ -930,6 +1061,32 @@ fun AutoModeToggle(
                 .background(Color.White)
                 // 하얀 원에만 살짝 그림자를 주어 입체감 부여
                 .shadow(elevation = 2.dp, shape = CircleShape)
+        )
+    }
+}
+
+// 스와이프 제스처 감지 Modifier
+fun Modifier.swipeDetector(
+    onSwipeLeft: (() -> Unit)? = null,
+    onSwipeRight: (() -> Unit)? = null
+): Modifier = this.composed {
+    val sensitivity = 50f   // 감도 (낮을수록 조금만 움직여도 인식)
+
+    pointerInput(Unit) {
+        var totalDrag = 0f
+        detectHorizontalDragGestures(
+            onDragEnd = {
+                // 드래그가 끝났을 때 누적된 거리를 판단
+                when {
+                    totalDrag < -sensitivity -> onSwipeLeft?.invoke()  // 왼쪽으로 밀었음 (<-)
+                    totalDrag > sensitivity -> onSwipeRight?.invoke()  // 오른쪽으로 밀었음 (->)
+                }
+                totalDrag = 0f
+            },
+            onHorizontalDrag = { change, dragAmount ->
+                change.consume()    // 제스처 소비
+                totalDrag += dragAmount
+            }
         )
     }
 }

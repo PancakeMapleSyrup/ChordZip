@@ -61,6 +61,9 @@ object ChordLibrary {
     // 앱이 실행되는 동안 사용자가 만든 코드를 여기에 저장합니다.
     private val userChords = mutableMapOf<String, ChordVoicing>()
 
+    // 삭제된 표준 코드 목록 (숨김 처리용)
+    private val hiddenStandardChords = mutableSetOf<String>()
+
     // 코드 정렬 우선순위
     // 숫자가 낮을수록 리스트 상단에 표시됩니다.
     private val suffixPriority = mapOf(
@@ -87,6 +90,11 @@ object ChordLibrary {
     fun findVoicing(chordName: String): ChordVoicing {
         val key = chordName.trim()
 
+        // 숨겨진 코드라면 빈 코드 반환 (검색에서도 제외)
+        if (hiddenStandardChords.contains(key)) {
+            return ChordVoicing("", 1, listOf(-1, -1, -1, -1, -1, -1))
+        }
+
         // 1순위: 사용자 정의 코드에서 찾기 (사용자가 덮어썼을 수도 있으므로)
         userChords[key]?.let { return it }
 
@@ -96,17 +104,25 @@ object ChordLibrary {
             ?: ChordVoicing("", 1, listOf(-1, -1, -1, -1, -1, -1))
     }
 
-    // 사용자 코드 추가 기능
+    // 사용자 코드 추가 기능 (삭제된 표준 코드와 이름이 같다면 복구 처리)
     fun addCustomChord(name: String, startFret: Int, positions: List<Int>) {
+        // 만약 표준 코드를 숨김 처리했었다면, 다시 보이게 하기 위해 제거
+        if (hiddenStandardChords.contains(name)) {
+            hiddenStandardChords.remove(name)
+        }
         val newChord = ChordVoicing(name, startFret, positions)
         userChords[name] = newChord
     }
 
     fun getChordsByRoot(root: String): List<ChordVoicing> {
         // 표준 코드와 사용자 코드를 합침
-        val allChords = standardChords.values + userChords.values
+        val allChords = standardChords + userChords
 
-        return allChords
+        return allChords.values
+            .filter { chord ->
+                // 숨김 목록에 없는 것만 표시
+                !hiddenStandardChords.contains(chord.name)
+            }
             .filter { chord ->
                 // 정확히 해당 근음으로 시작하는지 확인 (C 검색 시 C# 제외)
                 // 예: 근음이 "C"일 때 -> "C", "Cm" (O) / "C#", "C#m" (X)
@@ -123,7 +139,22 @@ object ChordLibrary {
                 // 정렬 로직 실행
                 compareChordNames(o1.name, o2.name, root)
             })
-            .distinctBy { it.name } // 중복 이름 제거 (사용자 코드가 우선순위를 가짐)
+    }
+
+    // 사용자 코드 삭제 기능
+    // 반환값: true(삭제 성공), false(코드가 없음)
+    fun removeChord(name: String): Boolean {
+        // 1순위: 사용자 코드가 있으면 제거
+        if (userChords.containsKey(name)) {
+            userChords.remove(name)
+            return true
+        }
+        // 2순위: 사용자 코드는 없고 표준 코드가 있으면 숨김 처리
+        if (standardChords.containsKey(name)) {
+            hiddenStandardChords.add(name)
+            return true
+        }
+        return false // 삭제할 대상이 없음
     }
 
     // 코드 이름 비교 함수
@@ -144,4 +175,6 @@ object ChordLibrary {
         // 4. 우선순위가 같다면 (둘 다 99점 등) 알파벳 순서로 정렬
         return suffix1.compareTo(suffix2)
     }
+
+
 }

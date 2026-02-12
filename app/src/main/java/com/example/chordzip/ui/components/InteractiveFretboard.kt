@@ -37,12 +37,13 @@ fun InteractiveFretboard(
     startFret: Int = 1,   // 시작 프렛 번호 (기본값: 1)
     onStartFretChanged: (Int) -> Unit = {},
     isInteractive : Boolean = true,  // false일 결우 읽기 모드로 전환
-    // 디자인 커스텀을 위한 파라미터들 (기본값은 AddChordDialog용 사이즈)
+    // 디자인 커스텀을 위한 파라미터들 (기본값은 ChordEditorDialog용 사이즈)
     boardPadding: androidx.compose.ui.unit.Dp = 16.dp,
     dotRadius: androidx.compose.ui.unit.Dp = 10.dp,
     lineThickness: androidx.compose.ui.unit.Dp = 2.dp,
     nutThickness: androidx.compose.ui.unit.Dp = 6.dp,
-    markerThickness: androidx.compose.ui.unit.Dp = 3.dp,
+    markerThickness: androidx.compose.ui.unit.Dp = 3.dp,    // 마커 선 두께
+    markerPaddingTop: androidx.compose.ui.unit.Dp = 15.dp,   // 마커가 너트 위로 얼마나 떨어질지 결정하는 파라미터 (기본값 15.dp)
     fretLabelFontSize: androidx.compose.ui.unit.TextUnit = 24.sp
 ) {
     val stringCount = 6 // 줄 개수 6개
@@ -64,7 +65,7 @@ fun InteractiveFretboard(
     val lineThicknessPx = with(LocalDensity.current) { lineThickness.toPx() }
     val nutThicknessPx = with(LocalDensity.current) { nutThickness.toPx() }
     val markerThicknessPx = with(LocalDensity.current) { markerThickness.toPx() }
-    val rightBufferPx = lineThicknessPx
+    val markerPaddingTopPx = with(LocalDensity.current) { markerPaddingTop.toPx() }
 
     Canvas(
         modifier = modifier
@@ -77,10 +78,8 @@ fun InteractiveFretboard(
                     val height = size.height
                     val showLabel = isInteractive || currentStartFret > 1   // 라벨 표시 여부 결정. 인터랙티브 모드이거나, 시작 프렛이 1보다 크면 라벨을 보여줌
                     val fretLabelWidth = if (showLabel) width * 0.15f else 0f
-                    val rightBuffer = lineThickness.toPx() // 오른쪽 끝 선이 잘리지 않게 여유 공간 확보
-
                     val boardStartX = fretLabelWidth + paddingPx
-                    val boardEndX = width - rightBuffer // 지판이 끝나는 실제 위치
+                    val boardEndX = width - paddingPx // 지판이 끝나는 실제 위치
                     val boardWidth = boardEndX - boardStartX
                     val stringSpacing = boardWidth / (stringCount - 1)
                     val fretSpacing = height / (fretCount + 1)
@@ -104,8 +103,8 @@ fun InteractiveFretboard(
 
                     // 지판 영역 터치
                     val adjustedX = tapOffset.x - boardStartX
-                    // 지판 오른쪽 밖 터치 무시
-                    if (adjustedX > boardWidth + 20f) return@detectTapGestures
+                    // stringSpacing의 절반 정도까지는 오른쪽 여백으로 허용하여 1번줄 터치로 인정
+                    if (adjustedX > boardWidth + paddingPx) return@detectTapGestures
 
                     // 몇 번 줄을 눌렀는지 계산 (반올림하여 가장 가까운 줄 찾기)
                     val clickedStringIndex = (adjustedX / stringSpacing).times(1).let {
@@ -149,7 +148,7 @@ fun InteractiveFretboard(
         val showLabel = isInteractive || startFret > 1
         val fretLabelWidth = if (showLabel) width * 0.15f else 0f  // 왼쪽의 15%는 프렛 번호와 화살표를 위한 공간
         val boardStartX = fretLabelWidth + paddingPx
-        val boardEndX = width - rightBufferPx
+        val boardEndX = width - paddingPx
         val boardWidth = boardEndX - boardStartX
         val stringSpacing = boardWidth / (stringCount - 1)
         val fretSpacing = height / (fretCount + 1)
@@ -166,11 +165,13 @@ fun InteractiveFretboard(
             )
         }
         // 가로줄 그리기
+        val currentNutThickness = if (startFret == 1) nutThicknessPx else lineThicknessPx
+        val nutYOffset = if (startFret == 1) nutThicknessPx / 2 else 0f
         drawLine( // 너트
             color = BOARD_COLOR,
-            start = Offset(boardStartX, topMargin),
-            end = Offset(boardEndX, topMargin),
-            strokeWidth = if (startFret == 1) nutThicknessPx else lineThicknessPx
+            start = Offset(boardStartX, topMargin + nutYOffset), // Y좌표에 오프셋 추가
+            end = Offset(boardEndX, topMargin + nutYOffset),     // Y좌표에 오프셋 추가
+            strokeWidth = currentNutThickness
         )
         // 나머지 프렛 바 (1번 ~ 5번)
         for (i in 1..fretCount) {
@@ -237,8 +238,8 @@ fun InteractiveFretboard(
         }
 
         // 마커(점, X, O) 그리기
-        val markerY = topMargin - 15.dp.toPx() // 마커 위치 (너트 위)
-        val currentMarkerRadius = if (dotRadiusPx > 18f) 18f else dotRadiusPx // px 단위 비교 (6dp ~= 18px @ xxhdpi)
+        val markerY = topMargin - markerPaddingTopPx // 마커 위치 (너트 위)
+        val markerRadius = dotRadiusPx
 
         positions.forEachIndexed { index, state ->
             val x = boardStartX + (index * stringSpacing)
@@ -247,7 +248,7 @@ fun InteractiveFretboard(
 
             when (state) {
                 -1 -> { // X (mute)
-                    val xSize = currentMarkerRadius
+                    val xSize = markerRadius
                     drawLine(
                         color = itemColor,
                         start = Offset(x - xSize, markerY - xSize),
@@ -262,10 +263,14 @@ fun InteractiveFretboard(
                     )
                 }
                 0 -> { // O (open)
+                    val strokeWidth = markerThicknessPx
+                    // 반지름 보정 (테두리가 바깥으로 튀어나가지 않고 안쪽으로 파고듭니다): (원래 반지름) - (두께의 절반)
+                    val adjustedRadius = markerRadius - (strokeWidth / 2)
                     drawCircle(
                         color = itemColor,
-                        radius = currentMarkerRadius,
-                        center = Offset(x, markerY)
+                        radius = adjustedRadius,
+                        center = Offset(x, markerY),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
                     )
                 }
                 else -> { // 1~5 (프렛 누름) -> 점 그리기
